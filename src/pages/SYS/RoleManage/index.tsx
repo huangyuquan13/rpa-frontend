@@ -28,34 +28,7 @@ const RoleManage = () => {
   const { canButton } = useAccess();
   //缓存树结构
   const treeDataRef = useRef<any[]>([]);
-  //权限分配:自动补父节点ID 接收用户选择的ID数组 和完整树数据
-  const addParentIds = (selectedIds: number[], treeData: any[]) => {
-    const map = new Map(); //快速查找
 
-    // 扁平化树结构（递归）找父节点id
-    const flatten = (list: any[]) => {
-      list.forEach((item) => {
-        map.set(item.id, item); // 把每个节点存进去
-        if (item.children) flatten(item.children); // 递归处理子节点
-      });
-    };
-
-    flatten(treeData);
-    // 不重复的集合
-    const result = new Set(selectedIds);
-
-    selectedIds.forEach((id) => {
-      let current = map.get(id); //根据id找节点对象
-
-      //有父节点就加入到数组中
-      while (current?.parentId) {
-        result.add(current.parentId);
-        current = map.get(current.parentId); //获取父节点对象，继续向上查找父节点的父节点（祖父节点）
-      }
-    });
-
-    return Array.from(result); // set对象转为数组返回
-  };
   const columns: ProColumns<any>[] = [
     { title: '序号', dataIndex: 'index', valueType: 'indexBorder', width: 48 },
     { title: '角色编码', dataIndex: 'roleCode', copyable: true },
@@ -107,7 +80,7 @@ const RoleManage = () => {
           {/* 编辑基本信息 */}
           <ModalForm
             title="编辑角色"
-            trigger={<a>编辑</a>}
+           trigger={canButton('BIANJIQUANXIAN') ? <a>编辑角色</a> : undefined}
             initialValues={record} //全部拿出
             onFinish={async (values) => {
               const res = await updateRole(record.id, values);
@@ -145,40 +118,21 @@ const RoleManage = () => {
             trigger={canButton('ROLE') ? <a>分配权限</a> : undefined}
             modalProps={{ destroyOnClose: true }} // 关闭弹窗时销毁表单，避免取消后再次打开保留脏数据
             // 核心：回显当前角色已有的权限 ID
-            // initialValues={{
-            //   resourceIds: record.permissions?.map((p: any) => p.id),
-            // }}
             request={async () => {
               const res = await getResourceList({ tree: true });
               const treeData = res.data || [];
               treeDataRef.current = treeData; //存到 ref，跨函数共享！
 
-              // 获取当前权限ID 将对象数组转换为纯ID数组  [2121]
-              const permissionIds =
-                record.permissions
-                  ?.filter((p: any) => p && p.id !== undefined && p.id !== null)
-                  ?.map((p: any) => Number(p.id)) || [];
-
-              // 回显时补全：如果后端给了按钮，自动带上父菜单用于显示 [2121, 213, 21, 20]
-              const displayIds = addParentIds(permissionIds, treeData);
-
-              // 构建ID到名称的映射(找resourceName)显示标签
-              //{2121: {id: 2121, resourceName: '新增角色'},}
-              const nodeMap = new Map();
-              const buildMap = (list: any[]) => {
-                list.forEach((item) => {
-                  nodeMap.set(item.id, item);
-                  if (item.children) buildMap(item.children);
-                });
-              };
-              buildMap(treeData);
-
-              // 严格模式必须传 对象数组 [{value: 2121, label: '新增角色'}]
+              // 获取当前权限ID 将对象数组转换为严格模式的值对象 [{value: 2121, label: '新增角色'}]
+              const resourceIds = record.permissions
+                ?.filter((p: any) => p && p.id !== undefined && p.id !== null)
+                ?.map((p: any) => ({
+                  value: p.id,
+                  label: p.resourceName,
+                })) || [];
+              //数据回显
               return {
-                resourceIds: displayIds.map((id: number) => ({
-                  value: id,
-                  label: nodeMap.get(id)?.resourceName || id,
-                })),
+                resourceIds,
               };
             }}
             onFinish={async (values: any) => {
@@ -186,16 +140,17 @@ const RoleManage = () => {
               const selectedIds = (values.resourceIds || []).map((item: any) =>
                 typeof item === 'object' ? item.value : item,
               );
-              // 提交时补全父节点（自动补上按钮所属的菜单）[2121, 213, 21, 20]
-              const fullIds = addParentIds(selectedIds, treeDataRef.current);
+              // 提交时直接使用用户选中的节点
               const res = await assignRolePermissions(record.id, {
-                resourceIds: fullIds, // 用补全后的ID
+                resourceIds: selectedIds,
               });
               if (res.code === 200) {
                 message.success('权限分配成功');
                 tableRef.current?.reload();
                 //重新请求当前权限 重新执行getInitialState()
                 await refresh();
+                // 2. 核心：强制刷新页面，让 app.tsx 重新走一遍 patchClientRoutes 注入新路由
+                window.location.reload(); 
                 return true;
               }
             }}
@@ -235,7 +190,7 @@ const RoleManage = () => {
                   label: 'resourceName',
                   value: 'id',
                   children: 'children', //数据结构映射 我的是id 和 resourceName
-                }, //数据回显
+                },
                 dropdownStyle: { maxHeight: 400, overflow: 'auto' }, //滚动条
               }}
             />

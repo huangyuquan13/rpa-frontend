@@ -9,7 +9,7 @@ import {
   ProFormText,
 } from '@ant-design/pro-components';
 import { history, useModel } from '@umijs/max';
-import { message } from 'antd';
+import { App, message } from 'antd';
 import { useEffect, useState } from 'react';
 /**
  * 自动绑定实例
@@ -17,6 +17,8 @@ import { useEffect, useState } from 'react';
  * 样式统一
  */
 const Login = () => {
+  // 使用 antd 的 App 静态方法或者 message 钩子
+  const [messageApi, contextHolder] = message.useMessage();
   //全局共享状态
   const { setInitialState, refresh } = useModel('@@initialState');
   //定义加载状态
@@ -41,14 +43,13 @@ const Login = () => {
   }, []);
   // 处理注册提交
   const handleRegister = async (values: any) => {
-    //将多余的确认密码字段拿出来 请求后端的实际数据
     const { confirmPassword, ...registerData } = values;
     const res = await register(registerData);
     if (res.code === 200) {
-      message.success('注册成功！');
+      messageApi.success('注册成功！');
       return true; // 返回 true 自动关闭弹窗
     }
-    message.error(res.msg);
+    messageApi.error(res.msg);
     return false;
   };
   //登录执行
@@ -92,14 +93,14 @@ const Login = () => {
         }));
         await refresh(); //刷新权限
         await sleep(3000); //强制等待3s
-        message.success('登录成功！');
-        //替代界面 不允许返回
-        history.replace('/home');
+        messageApi.success('登录成功！');
+        // 真动态路由模式下，登录后必须完全刷新页面以触发 app.tsx 的 render 重新获取路由
+        window.location.replace('/home');
       } else {
-        message.error(res?.msg || '登录失败');
+        messageApi.error(res?.msg || '登录失败');
       }
     } catch (error) {
-      message.error('网络请求异常');
+      messageApi.error('网络请求异常');
     } finally {
       setLoading(false); //隐藏
     }
@@ -118,6 +119,7 @@ const Login = () => {
       }}
     >
       <LoginBackground />
+      {contextHolder}
       {/* 5. 条件渲染：如果正在加载，显示全屏遮罩和 Loader */}{' '}
       {loading && (
         <div

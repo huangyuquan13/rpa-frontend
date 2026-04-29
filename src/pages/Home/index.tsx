@@ -31,6 +31,7 @@ const { Text, Title } = Typography;
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { initialState } = useModel('@@initialState');
+  const { authorizedPaths = [] } = initialState || {};
   
   // 统计数据状态
   const [statistics, setStatistics] = useState({
@@ -162,10 +163,12 @@ const Dashboard: React.FC = () => {
             color: 'white',
             borderRadius: 8,
           }}
-          bodyStyle={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+          styles={{
+            body: {
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }
           }}
         >
           <div>
@@ -221,33 +224,52 @@ const Dashboard: React.FC = () => {
               color: '#28a745',
               path: '/rpa/data/collect',
             },
-          ].map((item, index) => (
-            <Col span={6} key={index}>
-              <Card
-                hoverable // 增加悬浮效果，提示可点击
-                onClick={() => navigate(item.path)} // 绑定跳转逻辑
-                bodyStyle={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '20px 24px',
-                }}
-              >
-                <div
-                  style={{
-                    backgroundColor: item.color,
-                    padding: 12,
-                    borderRadius: 8,
-                    marginRight: 16,
+          ].map((item, index) => {
+            const hasAccess = authorizedPaths.includes(item.path);
+            return (
+              <Col span={6} key={index}>
+                <Card
+                  hoverable={hasAccess} // 只有有权限时才增加悬浮效果
+                  onClick={() => hasAccess && navigate(item.path)} // 只有有权限时才允许跳转
+                  styles={{
+                    body: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '20px 24px',
+                      cursor: hasAccess ? 'pointer' : 'default', // 没权限显示默认指针
+                      opacity: hasAccess ? 1 : 0.8, // 没权限略微变淡
+                    }
                   }}
                 >
-                  {React.cloneElement(item.icon as React.ReactElement, {
-                    style: { fontSize: 24, color: 'white' },
-                  })}
-                </div>
-                <Statistic title={item.title} value={item.value} />
-              </Card>
-            </Col>
-          ))}
+                  <div
+                    style={{
+                      backgroundColor: item.color,
+                      padding: 12,
+                      borderRadius: 8,
+                      marginRight: 16,
+                    }}
+                  >
+                    {React.cloneElement(item.icon as React.ReactElement, {
+                      style: { fontSize: 24, color: 'white' },
+                    })}
+                  </div>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {item.title}
+                    </Text>
+                    <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                      <Title level={3} style={{ margin: '4px 0' }}>
+                        {item.value}
+                      </Title>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {item.sub}
+                    </Text>
+                  </div>
+                </Card>
+              </Col>
+            );
+          })}
         </Row>
 
         {/* 🌟 第三部分：左右分栏布局 */}
@@ -258,7 +280,9 @@ const Dashboard: React.FC = () => {
             <Card
               title="任务状态概览"
               extra={
-                <a onClick={() => navigate('/rpa/task/list')}>查看详情 &gt;</a>
+                authorizedPaths.includes('/rpa/task/list') && (
+                  <a onClick={() => navigate('/rpa/task/list')}>查看详情 &gt;</a>
+                )
               }
               style={{ marginBottom: 24 }}
             >
@@ -298,7 +322,9 @@ const Dashboard: React.FC = () => {
             <Card
               title="最近任务"
               extra={
-                <a onClick={() => navigate('/rpa/task/list')}>查看全部 &gt;</a>
+                authorizedPaths.includes('/rpa/task/list') && (
+                  <a onClick={() => navigate('/rpa/task/list')}>查看全部 &gt;</a>
+                )
               }
             >
               <Table
@@ -310,7 +336,11 @@ const Dashboard: React.FC = () => {
                     title: '任务编码',
                     dataIndex: 'code',
                     render: (text) => (
-                      <a onClick={() => navigate('/rpa/task/list')}>{text}</a>
+                      authorizedPaths.includes('/rpa/task/list') ? (
+                        <a onClick={() => navigate('/rpa/task/list')}>{text}</a>
+                      ) : (
+                        <span>{text}</span>
+                      )
                     ),
                   },
                   { title: '流程名称', dataIndex: 'name' },
@@ -366,7 +396,7 @@ const Dashboard: React.FC = () => {
                     desc: '查询已处理的数据',
                     path: '/rpa/data/query',
                   },
-                ]}
+                ].filter(item => authorizedPaths.includes(item.path))} // 核心过滤逻辑
                 renderItem={(item) => (
                   <List.Item
                     style={{ cursor: 'pointer', padding: '12px 0' }}

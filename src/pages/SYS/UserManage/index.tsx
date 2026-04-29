@@ -94,7 +94,7 @@ const UserList = () => {
 
         return res.data.records.map((item: any) => ({
           label: item.roleName,
-          value: item.id,
+       value: item.roleName,
         }));
       },
     },
@@ -179,7 +179,7 @@ const UserList = () => {
 
                 return res.data.records.map((item: any) => ({
                   label: item.roleName,
-                  value: item.id,
+                  value: item.roleName,
                 }));
               }}
               rules={[{ required: true }]}
@@ -346,8 +346,8 @@ const UserList = () => {
                       pageSize: 1000,
                     });
                     return res.data.records.map((item: any) => ({
-                      label: item.roleName,
-                      value: item.id,
+                        label: item.roleName,
+                      value: item.roleName,
                     }));
                   }}
                   rules={[{ required: true }]}

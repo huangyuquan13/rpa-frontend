@@ -9,6 +9,157 @@ import {
 } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Dropdown, message, Space } from 'antd';
+import React, { useEffect } from 'react';
+
+// === 自动重定向组件 ===
+// 用于当访问带有子菜单但自身无组件的父路径（如 /sys）时，自动跳转到它的第一个子节点
+const AutoRedirect = ({ to }: { to: string }) => {
+  useEffect(() => {
+    history.replace(to);
+  }, [to]);
+  return null;
+};
+
+// === 递归寻找第一个叶子节点 ===
+const getFirstLeafPath = (nodes: any[]): string | null => {
+  for (const node of nodes) {
+    if (node.path) {
+      if (!node.children || node.children.length === 0) {
+        return node.path;
+      }
+      const leafPath = getFirstLeafPath(node.children);
+      if (leafPath) return leafPath;
+    }
+  }
+  return null;
+};
+
+// === 真动态路由组件映射表 ===
+// 此处映射后端 component 字段到真实 React 组件 按需加载
+const ComponentMap: Record<string, React.FC> = {
+  './Home': React.lazy(() => import('@/pages/Home')),
+  '@/components/BlankLayout': React.lazy(() => import('@/components/BlankLayout')),
+  './RPA/Task/List': React.lazy(() => import('@/pages/RPA/Task/List')),
+  './RPA/Task/Record': React.lazy(() => import('@/pages/RPA/Task/Record')),
+  './RPA/Robot/List': React.lazy(() => import('@/pages/RPA/Robot/List')),
+  './RPA/Process/List': React.lazy(() => import('@/pages/RPA/Process/List')),
+  './RPA/Data/Collect': React.lazy(() => import('@/pages/RPA/Data/Collect')),
+  './RPA/Data/Parse': React.lazy(() => import('@/pages/RPA/Data/Parse')),
+  './RPA/Data/Process': React.lazy(() => import('@/pages/RPA/Data/Process')),
+  './RPA/Data/Query': React.lazy(() => import('@/pages/RPA/Data/Query')),
+  './SYS/Person': React.lazy(() => import('@/pages/SYS/Person')),
+  './SYS/UserManage': React.lazy(() => import('@/pages/SYS/UserManage')),
+  './SYS/RoleManage': React.lazy(() => import('@/pages/SYS/RoleManage')),
+  './SYS/ResourceManage': React.lazy(() => import('@/pages/SYS/ResourceManage')),
+  './RPA/Task/List/listdetail.tsx': React.lazy(() => import('@/pages/RPA/Task/List/listdetail')),
+};
+
+// 存储后端的动态路由数据
+let extraRoutes: any[] = [];
+//执行在页面渲染前 render拉取数据 将权限菜单树存储到数组中
+export async function render(oldRender: () => void) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    oldRender();
+    return;
+  }
+  
+  try {
+    const baseURL = process.env.NODE_ENV === 'production' 
+      ? 'http://localhost:8080' 
+      : '';
+    // 获取当前用户的动态菜单树
+    const res = await fetch(`${baseURL}/api/v1/system/profile/menus`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const result = await res.json();
+    // console.log('Backend Menu Response:', result);
+    if (result.code === 200) {
+      extraRoutes = result.data || [];
+      // console.log('extraRoutes assigned:', extraRoutes);
+    }
+  } catch (error) {
+    console.error('动态获取路由失败', error);
+  }
+  
+  oldRender();
+}
+//执行在路由生成前
+export function patchClientRoutes({ routes }: any) {
+  // console.log('Original Routes in patchClientRoutes:', routes);
+  // 找umirc的原始路由
+  const layoutRoute = routes.find((r: any) => 
+    r.id === 'ant-design-pro-layout' || 
+    r.id === 'umi-plugin-layout' ||
+    (r.path === '/' && r.children)
+  );
+  
+  // console.log('Found Layout Route:', layoutRoute);
+
+  if (layoutRoute && extraRoutes.length > 0) {
+    const parseDynamicRoutes = (menuList: any[]): any[] => {
+      // 核心修复：必须过滤掉按钮权限节点（没有 path 或 resourceType === 2 的节点）
+      // 否则 Umi ProLayout 解析时会因为 path 为 null 报 endsWith 错误
+      const validMenus = menuList.filter((item) => item.path && item.resourceType !== 2);
+      
+      return validMenus.map((item) => {
+        const route: any = {
+          path: item.path,
+          name: item.resourceName,
+          // icon: item.icon, // 绑定图标
+          key: item.path, // 显式给一个 key
+        };
+        // 绑定组件
+        if (item.component && ComponentMap[item.component]) {
+          const Component = ComponentMap[item.component];
+          route.element = (
+            <React.Suspense fallback={<div>Loading...</div>}>
+              <Component />
+            </React.Suspense>
+          );
+          // console.log(`Mapped component for ${item.path}: ${item.component}`);
+        } else if (item.path) {
+          console.warn(`No component mapped for path: ${item.path}, component: ${item.component}`);
+        }
+        // 递归处理子路由 (Umi 4 / RR6 使用 children，ProLayout 使用 routes)
+        if (item.children && item.children.length > 0) {
+          const children = parseDynamicRoutes(item.children);
+          if (children.length > 0) {
+            route.children = [...children];
+            route.routes = [...children];
+            
+            // 【自动重定向逻辑】：如果当前节点包含子级，
+            // 我们为其注入一个 index 路由，自动跳转到该分支下第一个真实的叶子节点路径（如 /rpa -> /rpa/task/list）
+            // 即使父节点配置了诸如 BlankLayout，访问父路径时也会被 index 路由捕获并重定向
+            const leafPath = getFirstLeafPath(children);
+            if (leafPath) {
+              route.children.unshift({
+                index: true,
+                element: <AutoRedirect to={leafPath} />,
+                exact: true
+              });
+            }
+          }
+        }
+        return route;
+      });
+    };
+
+    const dynamicRoutes = parseDynamicRoutes(extraRoutes);
+    // console.log('Dynamic Routes to be injected:', dynamicRoutes);
+    
+    if (!layoutRoute.children) layoutRoute.children = [];
+    if (!layoutRoute.routes) layoutRoute.routes = [];
+    
+    layoutRoute.children = [...layoutRoute.children, ...dynamicRoutes];
+    layoutRoute.routes = [...layoutRoute.routes, ...dynamicRoutes];
+    
+    // console.log('Updated Layout Route structure:', layoutRoute);
+  } else {
+    console.error('Layout Route or extraRoutes is missing!', { layoutRoute, extraRoutesCount: extraRoutes.length });
+  }
+}
+
 
 //0.扁平化递归菜单 以及按钮权限
 const parsePermissions = (menus: any[]) => {
@@ -41,27 +192,7 @@ const parsePermissions = (menus: any[]) => {
     buttons,
   };
 };
-//0.按钮列表详情数据
-const extractButtons = (menus: any[]) => {
-  let result: any[] = [];
 
-  const loop = (list: any[]) => {
-    list.forEach((item) => {
-      // 只要按钮
-      if (item.resourceType === 2) {
-        result.push(item); // 存完整对象（方便页面用）
-      }
-
-      if (item.children && item.children.length > 0) {
-        loop(item.children);
-      }
-    });
-  };
-
-  loop(menus);
-
-  return result;
-};
 // 1. 初始化状态 在刷新页面或者刚打开网页时执行一次。
 export async function getInitialState() {
   const token = localStorage.getItem('token');
@@ -76,31 +207,21 @@ export async function getInitialState() {
     const currentUser = savedUserInfo ? JSON.parse(savedUserInfo) : undefined;
     let authorizedPaths: string[] = []; // 定义一个装权限路径的空数组
     let buttonPermissions: string[] = []; //定义一个装按钮的资源编码 判断权限
-    let menuData: any[] = []; //所有的菜单数据
-    let buttonList: any[] = []; //按钮所有对象数据
     if (currentUser) {
-      // 发起请求，获取属于当前用户的菜单树  与权限和按钮共用
+      // 发起请求，获取属于当前用户的c菜单树  与权限和按钮共用
       const menuRes = await getDynamicMenus();
 
       // debugger;
       // 调用上面的辅助函数，把树结构打平成简单的一维字符串数组
       const { paths, buttons } = parsePermissions(menuRes?.data || []);
-      buttonList = extractButtons(menuRes?.data || []); //提取按钮列表
       authorizedPaths = paths;
       buttonPermissions = buttons;
-      menuData = menuRes?.data || []; //赋值
-      console.log('菜单权限:', authorizedPaths);
-      console.log('按钮权限:', buttonPermissions);
-      console.log('menuRes:', menuData);
-      console.log('应该渲染到界面上的按钮:', buttonList);
     }
     //返回的initialState全局变量
     return {
       currentUser,
       authorizedPaths,
       buttonPermissions,
-      menuData,
-      buttonList,
       settings: {}, // 其他配置项
     };
   } catch (e) {
@@ -114,7 +235,6 @@ export async function getInitialState() {
 // 2. 布局配置
 export const layout = ({ initialState, setInitialState }: any) => {
   return {
-    key: initialState?.authorizedPaths?.join(','), //强制刷新
     title: 'RPA运营管理系统',
     layout: 'mix',
     splitMenus: true, //上左双层菜单
@@ -191,28 +311,13 @@ export const layout = ({ initialState, setInitialState }: any) => {
       },
     },
 
+    // 动态菜单可以直接交给真动态路由处理（Umi 的 ProLayout 会自动读取 route 配置）
+    // 或者如果你还想利用后端返回的结构直接生成侧边栏，保留 request 也可以，这里我们使用 true dynamic routing 后，
+    // Umi 能够自动通过 routes 渲染，不需要我们再写 menu.request
     menu: {
-      locale: false, //显示routers中name文本
-      defaultOpenAll: true, //默认全部打开
-      autoClose: false, //切换时候不收起
-      //动态菜单
-      request: async () => {
-        const transformMenu = (list: any[]): any[] => {
-          return list
-            .filter(
-              (item) => item.resourceType !== 2 && !item.path?.includes(':'),
-            )
-            .map((item) => ({
-              name: item.resourceName,
-              path: item.path,
-              // icon: item.icon || undefined,
-              routes: item.children ? transformMenu(item.children) : undefined,
-            }));
-        };
-
-        // 用 initialState 里的
-        return transformMenu(initialState?.menuData || []);
-      },
+      locale: false,
+      defaultOpenAll: true,
+      autoClose: false,
     },
   };
 };

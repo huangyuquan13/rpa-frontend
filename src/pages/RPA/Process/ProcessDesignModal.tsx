@@ -138,35 +138,55 @@ const ProcessDesignModal: React.FC<Props> = ({
                   </Space>
 
                   <Form.Item
-                    {...restField}
-                    name={[name, 'codeContent']}
-                    label="逻辑脚本 (Monaco Editor)"
+                    noStyle
+                    shouldUpdate={(prevValues, currentValues) =>
+                      prevValues.steps?.[name]?.stepType !==
+                      currentValues.steps?.[name]?.stepType
+                    }
                   >
-                    <div
-                      style={{ border: '1px solid #d9d9d9', height: '200px' }}
-                    >
-                      <Editor
-                        height="100%"
-                        language="java" // 对应你的 Groovy/Java 需求
-                        theme="vs-dark"
-                        options={{ minimap: { enabled: false }, fontSize: 13 }} //禁止缩写小地图
-                        //实时触发 更新codeContent数据
-                        onChange={(value) => {
-                          //获取由对象构成的数组 {stepName: "采集数据",stepType:"",codeContent:""}
-                          const steps = form.getFieldValue('steps');
-                          steps[name].codeContent = value;
-                          //修改后整改最新数据
-                          form.setFieldsValue({ steps });
-                        }}
-                        // 初始值加载
-                        //表单数据.steps[name].codeContent数组取值
-                        value={form.getFieldValue([
-                          'steps',
-                          name,
-                          'codeContent',
-                        ])}
-                      />
-                    </div>
+                    {() => {
+                      const currentStepType = form.getFieldValue([
+                        'steps',
+                        name,
+                        'stepType',
+                      ]);
+                      const editorLanguage =
+                        currentStepType === 'express脚本' ? 'javascript' : 'java';
+
+                      return (
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'codeContent']}
+                          label="逻辑脚本 (Monaco Editor)"
+                        >
+                          <div
+                            style={{ border: '1px solid #d9d9d9', height: '200px' }}
+                          >
+                            <Editor
+                              height="100%"
+                              language={editorLanguage}
+                              theme="vs-dark"
+                              options={{ minimap: { enabled: false }, fontSize: 13 }} //禁止缩写小地图
+                              //实时触发 更新codeContent数据
+                              onChange={(value) => {
+                                //获取由对象构成的数组 {stepName: "采集数据",stepType:"",codeContent:""}
+                                const steps = form.getFieldValue('steps');
+                                steps[name].codeContent = value;
+                                //修改后整改最新数据
+                                form.setFieldsValue({ steps });
+                              }}
+                              // 初始值加载
+                              //表单数据.steps[name].codeContent数组取值
+                              value={form.getFieldValue([
+                                'steps',
+                                name,
+                                'codeContent',
+                              ])}
+                            />
+                          </div>
+                        </Form.Item>
+                      );
+                    }}
                   </Form.Item>
                 </Card>
               ))}

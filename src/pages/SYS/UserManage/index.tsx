@@ -94,7 +94,7 @@ const UserList = () => {
 
         return res.data.records.map((item: any) => ({
           label: item.roleName,
-       value: item.roleName,
+          value: item.roleName,
         }));
       },
     },
@@ -118,9 +118,7 @@ const UserList = () => {
       title: '操作',
       valueType: 'option', // 这是专门放操作按钮的列
       render: (_, record) => [
-        // record 是当前行的数据
-        // 使用 Space 组件让按钮并排显示 (不写也行)
-        <Space size="middle">
+        <Space key="action" size="middle">
           {/* 编辑 */}
           <ModalForm
             key="edit_modal"
@@ -346,7 +344,7 @@ const UserList = () => {
                       pageSize: 1000,
                     });
                     return res.data.records.map((item: any) => ({
-                        label: item.roleName,
+                      label: item.roleName,
                       value: item.roleName,
                     }));
                   }}

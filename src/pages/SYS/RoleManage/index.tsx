@@ -24,7 +24,7 @@ const RoleManage = () => {
   // ActionType 引用类型 手动控制表格
   const tableRef = useRef<ActionType>();
   //全局状态的定义 刷新全局的初始状态
-  const { refresh, initialState } = useModel('@@initialState');
+  const { refresh } = useModel('@@initialState');
   const { canButton } = useAccess();
   //缓存树结构
   const treeDataRef = useRef<any[]>([]);
@@ -80,7 +80,7 @@ const RoleManage = () => {
           {/* 编辑基本信息 */}
           <ModalForm
             title="编辑角色"
-           trigger={canButton('BIANJIQUANXIAN') ? <a>编辑角色</a> : undefined}
+            trigger={canButton('BIANJIQUANXIAN') ? <a>编辑角色</a> : undefined}
             initialValues={record} //全部拿出
             onFinish={async (values) => {
               const res = await updateRole(record.id, values);
@@ -124,12 +124,13 @@ const RoleManage = () => {
               treeDataRef.current = treeData; //存到 ref，跨函数共享！
 
               // 获取当前权限ID 将对象数组转换为严格模式的值对象 [{value: 2121, label: '新增角色'}]
-              const resourceIds = record.permissions
-                ?.filter((p: any) => p && p.id !== undefined && p.id !== null)
-                ?.map((p: any) => ({
-                  value: p.id,
-                  label: p.resourceName,
-                })) || [];
+              const resourceIds =
+                record.permissions
+                  ?.filter((p: any) => p && p.id !== undefined && p.id !== null)
+                  ?.map((p: any) => ({
+                    value: p.id,
+                    label: p.resourceName,
+                  })) || [];
               //数据回显
               return {
                 resourceIds,
@@ -150,7 +151,7 @@ const RoleManage = () => {
                 //重新请求当前权限 重新执行getInitialState()
                 await refresh();
                 // 2. 核心：强制刷新页面，让 app.tsx 重新走一遍 patchClientRoutes 注入新路由
-                window.location.reload(); 
+                window.location.reload();
                 return true;
               }
             }}

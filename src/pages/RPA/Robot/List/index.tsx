@@ -316,7 +316,7 @@ const RobotList = () => {
                 </Button>
               }
               onFinish={async (values) => {
-                const res = await createRobot(values);
+                const res = await createRobot(values as any);
                 if (res.code === 200) {
                   message.success('新增成功');
                   tableRef.current?.reload();

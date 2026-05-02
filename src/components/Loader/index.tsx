@@ -1,23 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 
-const Loader = () => {
-  return (
-    <StyledWrapper>
-      <aside className="container-loader">
-        {/* 生成 15 个 div，并传入 index 作为 CSS 变量 --s */}
-        {Array.from({ length: 15 }).map((_, i) => (
-          <div
-            key={i}
-            className="aro"
-            style={{ '--s': i } as React.CSSProperties}
-          />
-        ))}
-      </aside>
-    </StyledWrapper>
-  );
-};
-
 const StyledWrapper = styled.div`
   /* 居中容器，方便在登录页显示 */
   display: flex;
@@ -53,5 +36,21 @@ const StyledWrapper = styled.div`
     }
   }
 `;
+
+const Loader = () => {
+  return (
+    <StyledWrapper>
+      <aside className="container-loader">
+        {Array.from({ length: 15 }).map((_, i) => (
+          <div
+            key={i}
+            className="aro"
+            style={{ '--s': i } as React.CSSProperties}
+          />
+        ))}
+      </aside>
+    </StyledWrapper>
+  );
+};
 
 export default Loader;

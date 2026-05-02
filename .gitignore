@@ -12,3 +12,6 @@
 /.mfsu
 .swc
 .turbopack
+/mock
+*.md
+!README.md

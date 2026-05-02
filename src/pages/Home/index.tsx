@@ -1,3 +1,7 @@
+import { getCollectionList } from '@/services/RPA/DataCollection/data';
+import { getProcessList } from '@/services/RPA/Processes/Processe';
+import { getRobotList } from '@/services/RPA/Robots/robot';
+import { getTaskList } from '@/services/RPA/Tasks/task';
 import {
   ClusterOutlined,
   DatabaseOutlined,
@@ -21,10 +25,6 @@ import {
   Typography,
 } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { getCollectionList } from '@/services/RPA/DataCollection/data';
-import { getProcessList } from '@/services/RPA/Processes/Processe';
-import { getRobotList } from '@/services/RPA/Robots/robot';
-import { getTaskList } from '@/services/RPA/Tasks/task';
 
 const { Text, Title } = Typography;
 
@@ -32,7 +32,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { initialState } = useModel('@@initialState');
   const { authorizedPaths = [] } = initialState || {};
-  
+
   // 统计数据状态
   const [statistics, setStatistics] = useState({
     taskTotal: 0,
@@ -43,7 +43,7 @@ const Dashboard: React.FC = () => {
     dataTotal: 0,
     dataToday: 0,
   });
-  
+
   // 任务状态统计
   const [taskStatusStats, setTaskStatusStats] = useState({
     running: 0,
@@ -51,10 +51,10 @@ const Dashboard: React.FC = () => {
     completed: 0,
     failed: 0,
   });
-  
+
   // 最近任务列表
   const [recentTasks, setRecentTasks] = useState<any[]>([]);
-  
+
   // 加载状态
   const [loading, setLoading] = useState(true);
 
@@ -64,74 +64,18 @@ const Dashboard: React.FC = () => {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const weekDays = [
+      '星期日',
+      '星期一',
+      '星期二',
+      '星期三',
+      '星期四',
+      '星期五',
+      '星期六',
+    ];
     const weekDay = weekDays[now.getDay()];
     return `${year}年${month}月${day}日 ${weekDay}`;
   };
-
-  // 加载所有统计数据
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        setLoading(true);
-        
-        // 并行请求所有接口
-        const [taskRes, robotRes, processRes, collectionRes] = await Promise.all([
-          getTaskList({ pageNum: 1, pageSize: 1 }),
-          getRobotList({ pageNum: 1, pageSize: 1 }),
-          getProcessList({ pageNum: 1, pageSize: 1 }),
-          getCollectionList({ pageNum: 1, pageSize: 1 }),
-        ]);
-
-        // 更新统计数据
-        setStatistics({
-          taskTotal: taskRes?.data?.total || 0,
-          robotTotal: robotRes?.data?.statistics?.total || 0,
-          robotOnline: robotRes?.data?.statistics?.online || 0,
-          processTotal: processRes?.data?.total || 0,
-          processEnabled: processRes?.data?.records?.filter((p: any) => p.status === 1).length || 0,
-          dataTotal: collectionRes?.data?.statistics?.totalCollection || 0,
-          dataToday: collectionRes?.data?.statistics?.success || 0,
-        });
-
-        // 获取任务状态统计（需要分别查询不同状态的任务数）
-        const [runningRes, pendingRes, completedRes, failedRes] = await Promise.all([
-          getTaskList({ taskStatus: '1', pageNum: 1, pageSize: 1 }), // 执行中
-          getTaskList({ taskStatus: '0', pageNum: 1, pageSize: 1 }), // 待执行
-          getTaskList({ taskStatus: '2', pageNum: 1, pageSize: 1 }), // 已完成
-          getTaskList({ taskStatus: '3', pageNum: 1, pageSize: 1 }), // 失败
-        ]);
-
-        setTaskStatusStats({
-          running: runningRes?.data?.total || 0,
-          pending: pendingRes?.data?.total || 0,
-          completed: completedRes?.data?.total || 0,
-          failed: failedRes?.data?.total || 0,
-        });
-
-        // 获取最近5条任务
-        const recentTasksRes = await getTaskList({ pageNum: 1, pageSize: 5 });
-        const tasks = recentTasksRes?.data?.records || [];
-        
-        // 转换任务数据格式以适配表格
-        const formattedTasks = tasks.map((task: any) => ({
-          id: task.id,
-          code: task.taskCode,
-          name: task.taskName,
-          status: getTaskStatusText(task.taskStatus),
-          time: formatDateTime(task.createTime),
-        }));
-        
-        setRecentTasks(formattedTasks);
-      } catch (error) {
-        console.error('加载首页数据失败:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDashboardData();
-  }, []);
 
   // 任务状态文本映射
   const getTaskStatusText = (status: string) => {
@@ -149,6 +93,74 @@ const Dashboard: React.FC = () => {
     if (!dateTime) return '-';
     return dateTime.replace('T', ' ').substring(0, 19);
   };
+
+  // 加载所有统计数据
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+
+        // 并行请求所有接口
+        const [taskRes, robotRes, processRes, collectionRes] =
+          await Promise.all([
+            getTaskList({ pageNum: 1, pageSize: 1 }),
+            getRobotList({ pageNum: 1, pageSize: 1 }),
+            getProcessList({ pageNum: 1, pageSize: 1 }),
+            getCollectionList({ pageNum: 1, pageSize: 1 }),
+          ]);
+
+        // 更新统计数据
+        setStatistics({
+          taskTotal: taskRes?.data?.total || 0,
+          robotTotal: robotRes?.data?.statistics?.total || 0,
+          robotOnline: robotRes?.data?.statistics?.online || 0,
+          processTotal: processRes?.data?.total || 0,
+          processEnabled:
+            processRes?.data?.records?.filter((p: any) => p.status === 1)
+              .length || 0,
+          dataTotal: collectionRes?.data?.statistics?.totalCollection || 0,
+          dataToday: collectionRes?.data?.statistics?.success || 0,
+        });
+
+        // 获取任务状态统计（需要分别查询不同状态的任务数）
+        const [runningRes, pendingRes, completedRes, failedRes] =
+          await Promise.all([
+            getTaskList({ taskStatus: '1', pageNum: 1, pageSize: 1 }), // 执行中
+            getTaskList({ taskStatus: '0', pageNum: 1, pageSize: 1 }), // 待执行
+            getTaskList({ taskStatus: '2', pageNum: 1, pageSize: 1 }), // 已完成
+            getTaskList({ taskStatus: '3', pageNum: 1, pageSize: 1 }), // 失败
+          ]);
+
+        setTaskStatusStats({
+          running: runningRes?.data?.total || 0,
+          pending: pendingRes?.data?.total || 0,
+          completed: completedRes?.data?.total || 0,
+          failed: failedRes?.data?.total || 0,
+        });
+
+        // 获取最近5条任务
+        const recentTasksRes = await getTaskList({ pageNum: 1, pageSize: 5 });
+        const tasks = recentTasksRes?.data?.records || [];
+
+        // 转换任务数据格式以适配表格
+        const formattedTasks = tasks.map((task: any) => ({
+          id: task.id,
+          code: task.taskCode,
+          name: task.taskName,
+          status: getTaskStatusText(task.taskStatus),
+          time: formatDateTime(task.createTime),
+        }));
+
+        setRecentTasks(formattedTasks);
+      } catch (error) {
+        console.error('加载首页数据失败:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
 
   return (
     <Spin spinning={loading}>
@@ -168,7 +180,7 @@ const Dashboard: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-            }
+            },
           }}
         >
           <div>
@@ -238,7 +250,7 @@ const Dashboard: React.FC = () => {
                       padding: '20px 24px',
                       cursor: hasAccess ? 'pointer' : 'default', // 没权限显示默认指针
                       opacity: hasAccess ? 1 : 0.8, // 没权限略微变淡
-                    }
+                    },
                   }}
                 >
                   <div
@@ -281,7 +293,9 @@ const Dashboard: React.FC = () => {
               title="任务状态概览"
               extra={
                 authorizedPaths.includes('/rpa/task/list') && (
-                  <a onClick={() => navigate('/rpa/task/list')}>查看详情 &gt;</a>
+                  <a onClick={() => navigate('/rpa/task/list')}>
+                    查看详情 &gt;
+                  </a>
                 )
               }
               style={{ marginBottom: 24 }}
@@ -323,7 +337,9 @@ const Dashboard: React.FC = () => {
               title="最近任务"
               extra={
                 authorizedPaths.includes('/rpa/task/list') && (
-                  <a onClick={() => navigate('/rpa/task/list')}>查看全部 &gt;</a>
+                  <a onClick={() => navigate('/rpa/task/list')}>
+                    查看全部 &gt;
+                  </a>
                 )
               }
             >
@@ -335,13 +351,12 @@ const Dashboard: React.FC = () => {
                   {
                     title: '任务编码',
                     dataIndex: 'code',
-                    render: (text) => (
+                    render: (text) =>
                       authorizedPaths.includes('/rpa/task/list') ? (
                         <a onClick={() => navigate('/rpa/task/list')}>{text}</a>
                       ) : (
                         <span>{text}</span>
-                      )
-                    ),
+                      ),
                   },
                   { title: '流程名称', dataIndex: 'name' },
                   {
@@ -396,14 +411,22 @@ const Dashboard: React.FC = () => {
                     desc: '查询已处理的数据',
                     path: '/rpa/data/query',
                   },
-                ].filter(item => authorizedPaths.includes(item.path))} // 核心过滤逻辑
+                ].filter((item) => authorizedPaths.includes(item.path))} // 核心过滤逻辑
                 renderItem={(item) => (
                   <List.Item
                     style={{ cursor: 'pointer', padding: '12px 0' }}
                     onClick={() => navigate(item.path)} // 绑定跳转逻辑
-                    actions={[<RightOutlined style={{ color: '#bfbfbf' }} />]} // 右侧箭头
+                    actions={[
+                      <RightOutlined
+                        key="arrow"
+                        style={{ color: '#bfbfbf' }}
+                      />,
+                    ]} // 右侧箭头
                   >
-                    <List.Item.Meta title={item.title} description={item.desc} />
+                    <List.Item.Meta
+                      title={item.title}
+                      description={item.desc}
+                    />
                   </List.Item>
                 )}
               />
@@ -413,7 +436,9 @@ const Dashboard: React.FC = () => {
             <Card title="系统信息">
               <Descriptions column={1} bordered size="small">
                 <Descriptions.Item label="系统版本">v1.0.0</Descriptions.Item>
-                <Descriptions.Item label="运行时间">15天 8小时</Descriptions.Item>
+                <Descriptions.Item label="运行时间">
+                  15天 8小时
+                </Descriptions.Item>
                 <Descriptions.Item label="数据源">东方财富网</Descriptions.Item>
                 <Descriptions.Item label="最后更新">
                   {new Date().toLocaleString('zh-CN')}

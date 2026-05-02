@@ -205,6 +205,7 @@ const TaskList = () => {
       }}
       toolBarRender={() => [
         <ModalForm
+          key="create-task"
           title="新建任务"
           trigger={<Button type="primary">新建任务</Button>}
           // 自定义底部按钮，增加“创建并执行”

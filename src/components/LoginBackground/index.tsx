@@ -1,6 +1,5 @@
 import styled, { keyframes } from 'styled-components';
 
-// 1. 必须将 keyframes 提取到组件外部定义，确保全局可用
 const speeder = keyframes`
   0% { transform: translate(2px, 1px) rotate(0deg); }
   10% { transform: translate(-1px, -3px) rotate(-1deg); }
@@ -25,33 +24,6 @@ const lf2 = keyframes` 0% { left: 200%; } 100% { left: -200%; opacity: 0; } `;
 const lf3 = keyframes` 0% { left: 200%; } 100% { left: -100%; opacity: 0; } `;
 const lf4 = keyframes` 0% { left: 200%; } 100% { left: -100%; opacity: 0; } `;
 
-const LoginBackground = () => {
-  return (
-    <StyledWrapper>
-      <div className="bg-container">
-        <div className="loader">
-          <span>
-            <span />
-            <span />
-            <span />
-            <span />
-          </span>
-          <div className="base">
-            <span />
-            <div className="face" />
-          </div>
-        </div>
-        <div className="longfazers">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-      </div>
-    </StyledWrapper>
-  );
-};
-
 const StyledWrapper = styled.div`
   .bg-container {
     position: fixed;
@@ -66,10 +38,9 @@ const StyledWrapper = styled.div`
 
   .loader {
     position: absolute;
-    top: 60%; /* 稍微往下调一点，避开表单中心 */
+    top: 60%;
     left: 50%;
     margin-left: -50px;
-    /* 使用外部定义的 keyframes 变量 */
     animation: ${speeder} 0.4s linear infinite;
   }
 
@@ -190,5 +161,32 @@ const StyledWrapper = styled.div`
     animation-delay: -3s;
   }
 `;
+
+const LoginBackground = () => {
+  return (
+    <StyledWrapper>
+      <div className="bg-container">
+        <div className="loader">
+          <span>
+            <span />
+            <span />
+            <span />
+            <span />
+          </span>
+          <div className="base">
+            <span />
+            <div className="face" />
+          </div>
+        </div>
+        <div className="longfazers">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+    </StyledWrapper>
+  );
+};
 
 export default LoginBackground;

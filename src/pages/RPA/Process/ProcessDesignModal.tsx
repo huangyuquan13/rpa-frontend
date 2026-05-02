@@ -1,5 +1,4 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { ActionType } from '@ant-design/pro-components';
 import Editor, { loader } from '@monaco-editor/react';
 import {
   Button,
@@ -12,7 +11,7 @@ import {
   Space,
   Tag,
 } from 'antd';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 // 导入对应的保存和查询接口
 import {
   getProcessSteps,
@@ -50,7 +49,7 @@ const ProcessDesignModal: React.FC<Props> = ({
       });
     }
   }, [visible, processCode]);
-  const actionRef = useRef<ActionType>();
+
   // 保存所有步骤
   const handleSave = async () => {
     const values = await form.validateFields();
@@ -151,7 +150,9 @@ const ProcessDesignModal: React.FC<Props> = ({
                         'stepType',
                       ]);
                       const editorLanguage =
-                        currentStepType === 'express脚本' ? 'javascript' : 'java';
+                        currentStepType === 'express脚本'
+                          ? 'javascript'
+                          : 'java';
 
                       return (
                         <Form.Item
@@ -160,13 +161,19 @@ const ProcessDesignModal: React.FC<Props> = ({
                           label="逻辑脚本 (Monaco Editor)"
                         >
                           <div
-                            style={{ border: '1px solid #d9d9d9', height: '200px' }}
+                            style={{
+                              border: '1px solid #d9d9d9',
+                              height: '200px',
+                            }}
                           >
                             <Editor
                               height="100%"
                               language={editorLanguage}
                               theme="vs-dark"
-                              options={{ minimap: { enabled: false }, fontSize: 13 }} //禁止缩写小地图
+                              options={{
+                                minimap: { enabled: false },
+                                fontSize: 13,
+                              }} //禁止缩写小地图
                               //实时触发 更新codeContent数据
                               onChange={(value) => {
                                 //获取由对象构成的数组 {stepName: "采集数据",stepType:"",codeContent:""}

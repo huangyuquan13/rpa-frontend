@@ -9,7 +9,7 @@ import {
   ProFormText,
 } from '@ant-design/pro-components';
 import { history, useModel } from '@umijs/max';
-import { App, message } from 'antd';
+import { message } from 'antd';
 import { useEffect, useState } from 'react';
 /**
  * 自动绑定实例
@@ -43,7 +43,8 @@ const Login = () => {
   }, []);
   // 处理注册提交
   const handleRegister = async (values: any) => {
-    const { confirmPassword, ...registerData } = values;
+    const { confirmPassword: _confirmPwd, ...registerData } = values;
+    void _confirmPwd;
     const res = await register(registerData);
     if (res.code === 200) {
       messageApi.success('注册成功！');
@@ -57,7 +58,9 @@ const Login = () => {
     setLoading(true); //执行时候显示
     // 定义一个等待函数（单位：毫秒）
     const sleep = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      });
     try {
       //请求
       const res = await login(values);

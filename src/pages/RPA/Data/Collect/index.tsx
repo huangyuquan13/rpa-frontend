@@ -233,7 +233,7 @@ const DataCollection: React.FC = () => {
                 </Button>
               }
               onFinish={async (values) => {
-                await addCollection(values);
+                await addCollection(values as any);
                 message.success('新增成功');
                 actionRef.current?.reload();
                 return true;

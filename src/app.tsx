@@ -38,7 +38,9 @@ const getFirstLeafPath = (nodes: any[]): string | null => {
 // 此处映射后端 component 字段到真实 React 组件 按需加载
 const ComponentMap: Record<string, React.FC> = {
   './Home': React.lazy(() => import('@/pages/Home')),
-  '@/components/BlankLayout': React.lazy(() => import('@/components/BlankLayout')),
+  '@/components/BlankLayout': React.lazy(
+    () => import('@/components/BlankLayout'),
+  ),
   './RPA/Task/List': React.lazy(() => import('@/pages/RPA/Task/List')),
   './RPA/Task/Record': React.lazy(() => import('@/pages/RPA/Task/Record')),
   './RPA/Robot/List': React.lazy(() => import('@/pages/RPA/Robot/List')),
@@ -50,8 +52,12 @@ const ComponentMap: Record<string, React.FC> = {
   './SYS/Person': React.lazy(() => import('@/pages/SYS/Person')),
   './SYS/UserManage': React.lazy(() => import('@/pages/SYS/UserManage')),
   './SYS/RoleManage': React.lazy(() => import('@/pages/SYS/RoleManage')),
-  './SYS/ResourceManage': React.lazy(() => import('@/pages/SYS/ResourceManage')),
-  './RPA/Task/List/listdetail.tsx': React.lazy(() => import('@/pages/RPA/Task/List/listdetail')),
+  './SYS/ResourceManage': React.lazy(
+    () => import('@/pages/SYS/ResourceManage'),
+  ),
+  './RPA/Task/List/listdetail.tsx': React.lazy(
+    () => import('@/pages/RPA/Task/List/listdetail'),
+  ),
 };
 
 // 存储后端的动态路由数据
@@ -63,14 +69,12 @@ export async function render(oldRender: () => void) {
     oldRender();
     return;
   }
-  
+
   try {
-    const baseURL = process.env.NODE_ENV === 'production' 
-      ? 'http://localhost:8080' 
-      : '';
+    const baseURL = process.env.RPA_BACKEND_URL || '';
     // 获取当前用户的动态菜单树
     const res = await fetch(`${baseURL}/api/v1/system/profile/menus`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     });
     const result = await res.json();
     // console.log('Backend Menu Response:', result);
@@ -81,27 +85,30 @@ export async function render(oldRender: () => void) {
   } catch (error) {
     console.error('动态获取路由失败', error);
   }
-  
+
   oldRender();
 }
 //执行在路由生成前
 export function patchClientRoutes({ routes }: any) {
   // console.log('Original Routes in patchClientRoutes:', routes);
   // 找umirc的原始路由
-  const layoutRoute = routes.find((r: any) => 
-    r.id === 'ant-design-pro-layout' || 
-    r.id === 'umi-plugin-layout' ||
-    (r.path === '/' && r.children)
+  const layoutRoute = routes.find(
+    (r: any) =>
+      r.id === 'ant-design-pro-layout' ||
+      r.id === 'umi-plugin-layout' ||
+      (r.path === '/' && r.children),
   );
-  
+
   // console.log('Found Layout Route:', layoutRoute);
 
   if (layoutRoute && extraRoutes.length > 0) {
     const parseDynamicRoutes = (menuList: any[]): any[] => {
       // 核心修复：必须过滤掉按钮权限节点（没有 path 或 resourceType === 2 的节点）
       // 否则 Umi ProLayout 解析时会因为 path 为 null 报 endsWith 错误
-      const validMenus = menuList.filter((item) => item.path && item.resourceType !== 2);
-      
+      const validMenus = menuList.filter(
+        (item) => item.path && item.resourceType !== 2,
+      );
+
       return validMenus.map((item) => {
         const route: any = {
           path: item.path,
@@ -119,7 +126,9 @@ export function patchClientRoutes({ routes }: any) {
           );
           // console.log(`Mapped component for ${item.path}: ${item.component}`);
         } else if (item.path) {
-          console.warn(`No component mapped for path: ${item.path}, component: ${item.component}`);
+          console.warn(
+            `No component mapped for path: ${item.path}, component: ${item.component}`,
+          );
         }
         // 递归处理子路由 (Umi 4 / RR6 使用 children，ProLayout 使用 routes)
         if (item.children && item.children.length > 0) {
@@ -127,7 +136,7 @@ export function patchClientRoutes({ routes }: any) {
           if (children.length > 0) {
             route.children = [...children];
             route.routes = [...children];
-            
+
             // 【自动重定向逻辑】：如果当前节点包含子级，
             // 我们为其注入一个 index 路由，自动跳转到该分支下第一个真实的叶子节点路径（如 /rpa -> /rpa/task/list）
             // 即使父节点配置了诸如 BlankLayout，访问父路径时也会被 index 路由捕获并重定向
@@ -136,7 +145,7 @@ export function patchClientRoutes({ routes }: any) {
               route.children.unshift({
                 index: true,
                 element: <AutoRedirect to={leafPath} />,
-                exact: true
+                exact: true,
               });
             }
           }
@@ -147,19 +156,21 @@ export function patchClientRoutes({ routes }: any) {
 
     const dynamicRoutes = parseDynamicRoutes(extraRoutes);
     // console.log('Dynamic Routes to be injected:', dynamicRoutes);
-    
+
     if (!layoutRoute.children) layoutRoute.children = [];
     if (!layoutRoute.routes) layoutRoute.routes = [];
-    
+
     layoutRoute.children = [...layoutRoute.children, ...dynamicRoutes];
     layoutRoute.routes = [...layoutRoute.routes, ...dynamicRoutes];
-    
+
     // console.log('Updated Layout Route structure:', layoutRoute);
   } else {
-    console.error('Layout Route or extraRoutes is missing!', { layoutRoute, extraRoutesCount: extraRoutes.length });
+    console.error('Layout Route or extraRoutes is missing!', {
+      layoutRoute,
+      extraRoutesCount: extraRoutes.length,
+    });
   }
 }
-
 
 //0.扁平化递归菜单 以及按钮权限
 const parsePermissions = (menus: any[]) => {
@@ -324,10 +335,7 @@ export const layout = ({ initialState, setInitialState }: any) => {
 
 // 3.请求拦截器与响应拦截器
 export const request = {
-  baseURL:
-    process.env.NODE_ENV === 'production'
-      ? 'http://localhost:8080'
-      : '',
+  baseURL: process.env.RPA_BACKEND_URL || '',
 
   requestInterceptors: [
     (config: any) => {
